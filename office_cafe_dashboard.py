@@ -42,15 +42,40 @@ if df.empty:
 
 # 사이드바
 with st.sidebar:
-    st.header("🏢 상권 선택")
-    # 특수문자 이슈 방지를 위해 정렬된 유니크 리스트 사용
-    dong_list = sorted(df['표준_행정동_명'].unique())
-    target_dong = st.selectbox("분석 대상 행정동", dong_list)
+    st.header("🔍 필터링 설정")
+    # 평일 매출 비중 필터
+    min_weekday_ratio = st.slider(
+        "최소 평일 매출 비중 (%)",
+        min_value=0,
+        max_value=100,
+        value=70,  # 기본값 70% (오피스 타겟)
+        help="전체 매출 중 평일(월~금) 매출이 차지하는 최소 비중입니다."
+    ) / 100.0
+
     st.markdown("---")
-    st.subheader("🏆 오피스 상권 Top 10")
-    top10_list = df.nsmallest(10, '전체_순위')[['전체_순위', '표준_행정동_명']]
-    for _, row in top10_list.iterrows():
-        st.write(f"**{row['전체_순위']}위** : {row['표준_행정동_명']}")
+    st.header("🏢 상권 선택")
+    
+    # 데이터 필터링 적용
+    filtered_df = df[df['평일_매출_비중'] >= min_weekday_ratio]
+    
+    if filtered_df.empty:
+        st.warning(f"평일 비중 {min_weekday_ratio:.0%} 이상의 상권이 없습니다. 필터를 조절해주세요.")
+        dong_list = []
+    else:
+        dong_list = sorted(filtered_df['표준_행정동_명'].unique())
+
+    target_dong = st.selectbox("분석 대상 행정동", dong_list if dong_list else ["데이터 없음"])
+    
+    st.markdown("---")
+    st.subheader(f"🏆 타겟팅 Top 10 (평일 {min_weekday_ratio:.0%}+)")
+    # 필터링된 데이터 중 상위 10개 표시
+    display_top10 = filtered_df.nsmallest(10, '전체_순위')[['전체_순위', '표준_행정동_명']] if not filtered_df.empty else pd.DataFrame()
+    
+    if not display_top10.empty:
+        for _, row in display_top10.iterrows():
+            st.write(f"**{row['전체_순위']}위** : {row['표준_행정동_명']}")
+    else:
+        st.write("해당 조건의 상권이 없습니다.")
 
 st.markdown('<div class="main-title">오피스 상권 카페 창업 스카우터</div>', unsafe_allow_html=True)
 st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반 (Data v5)</div>', unsafe_allow_html=True)
