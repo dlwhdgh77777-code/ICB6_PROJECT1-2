@@ -23,25 +23,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data
-def load_data():
-    path = 'dashboard_master.parquet'
+def load_master_data_v5():
+    # 강제 버전 업그레이드 (v5)
+    path = 'dashboard_master_v5.parquet'
     if os.path.exists(path):
         df = pd.read_parquet(path)
+        # 전체 순위 산출 (기회 지수 기준 내림차순)
         df['전체_순위'] = df['창업_기회_지수'].rank(ascending=False, method='min').astype(int)
         return df
     return pd.DataFrame()
 
-df = load_data()
+df = load_master_data_v5()
 total_dongs = len(df)
 
 if df.empty:
-    st.error("데이터를 찾을 수 없습니다.")
+    st.error("데이터(v5)를 찾을 수 없습니다. 전처리 스크립트를 다시 확인해주세요.")
     st.stop()
 
 # 사이드바
 with st.sidebar:
     st.header("🏢 상권 선택")
-    target_dong = st.selectbox("분석 대상 행정동", sorted(df['표준_행정동_명'].unique()))
+    # 특수문자 이슈 방지를 위해 정렬된 유니크 리스트 사용
+    dong_list = sorted(df['표준_행정동_명'].unique())
+    target_dong = st.selectbox("분석 대상 행정동", dong_list)
     st.markdown("---")
     st.subheader("🏆 오피스 상권 Top 10")
     top10_list = df.nsmallest(10, '전체_순위')[['전체_순위', '표준_행정동_명']]
@@ -49,9 +53,14 @@ with st.sidebar:
         st.write(f"**{row['전체_순위']}위** : {row['표준_행정동_명']}")
 
 st.markdown('<div class="main-title">오피스 상권 카페 창업 스카우터</div>', unsafe_allow_html=True)
-st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반 (Data v5)</div>', unsafe_allow_html=True)
 
-selected_row = df[df['표준_행정동_명'] == target_dong].iloc[0]
+# 데이터 필터링 (정확한 매칭 확인)
+selected_df = df[df['표준_행정동_명'] == target_dong]
+if selected_df.empty:
+    st.warning(f"'{target_dong}'에 대한 매칭 데이터를 찾을 수 없습니다.")
+    st.stop()
+selected_row = selected_df.iloc[0]
 
 # KPI
 c1, c2, c3, c4, c5 = st.columns(5)
