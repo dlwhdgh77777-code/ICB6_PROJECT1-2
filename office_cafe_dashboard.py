@@ -24,7 +24,7 @@ st.markdown("""
 
 @st.cache_data
 def load_data():
-    path = r'c:\fcicb6\dashboard_master.parquet'
+    path = 'dashboard_master.parquet'
     if os.path.exists(path):
         df = pd.read_parquet(path)
         df['전체_순위'] = df['창업_기회_지수'].rank(ascending=False, method='min').astype(int)
