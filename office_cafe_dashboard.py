@@ -23,9 +23,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data
-def load_master_data_v5():
-    # 강제 버전 업그레이드 (v5)
-    path = 'dashboard_master_v5.parquet'
+def load_master_data_v6():
+    # v6: 세분화된 행정동 포함 (삼성1동, 삼성2동 등)
+    path = 'dashboard_master_v6.parquet'
     if os.path.exists(path):
         df = pd.read_parquet(path)
         # 전체 순위 산출 (기회 지수 기준 내림차순)
@@ -33,11 +33,11 @@ def load_master_data_v5():
         return df
     return pd.DataFrame()
 
-df = load_master_data_v5()
+df = load_master_data_v6()
 total_dongs = len(df)
 
 if df.empty:
-    st.error("데이터(v5)를 찾을 수 없습니다. 전처리 스크립트를 다시 확인해주세요.")
+    st.error("데이터(v6)를 찾을 수 없습니다. 파일 경로를 확인해주세요: dashboard_master_v6.parquet")
     st.stop()
 
 # 사이드바
@@ -78,7 +78,7 @@ with st.sidebar:
         st.write("해당 조건의 상권이 없습니다.")
 
 st.markdown('<div class="main-title">오피스 상권 카페 창업 스카우터</div>', unsafe_allow_html=True)
-st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반 (Data v5)</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반 (Data v6 - 세분화 행정동 포함)</div>', unsafe_allow_html=True)
 
 # 데이터 필터링 (정확한 매칭 확인)
 selected_df = df[df['표준_행정동_명'] == target_dong]
