@@ -23,9 +23,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data
-def load_master_data_v6():
-    # v6: 세분화된 행정동 포함 (삼성1동, 삼성2동 등)
-    path = 'dashboard_master_v6.parquet'
+def load_master_data_v7():
+    # v7: 면적 데이터 추가 + 카페 밀집도 지표 포함
+    path = 'dashboard_master_v7.parquet'
     if os.path.exists(path):
         df = pd.read_parquet(path)
         # 전체 순위 산출 (기회 지수 기준 내림차순)
@@ -33,11 +33,11 @@ def load_master_data_v6():
         return df
     return pd.DataFrame()
 
-df = load_master_data_v6()
+df = load_master_data_v7()
 total_dongs = len(df)
 
 if df.empty:
-    st.error("데이터(v6)를 찾을 수 없습니다. 파일 경로를 확인해주세요: dashboard_master_v6.parquet")
+    st.error("데이터(v7)를 찾을 수 없습니다. 파일 경로를 확인해주세요: dashboard_master_v7.parquet")
     st.stop()
 
 # 사이드바
@@ -49,26 +49,21 @@ with st.sidebar:
         min_value=0,
         max_value=100,
         value=70,  # 기본값 70% (오피스 타겟)
-        help="전체 매출 중 평일(월~금) 매출이 차지하는 최소 비중입니다."
+        help="전체 매출 중 평일(월~금) 매출이 차지하는 최소 비중입니다. (Top 10 목록에만 적용)"
     ) / 100.0
 
     st.markdown("---")
     st.header("🏢 상권 선택")
     
-    # 데이터 필터링 적용
-    filtered_df = df[df['평일_매출_비중'] >= min_weekday_ratio]
-    
-    if filtered_df.empty:
-        st.warning(f"평일 비중 {min_weekday_ratio:.0%} 이상의 상권이 없습니다. 필터를 조절해주세요.")
-        dong_list = []
-    else:
-        dong_list = sorted(filtered_df['표준_행정동_명'].unique())
-
-    target_dong = st.selectbox("분석 대상 행정동", dong_list if dong_list else ["데이터 없음"])
+    # 전체 행정동 목록 (필터 무관)
+    all_dong_list = sorted(df['표준_행정동_명'].unique())
+    target_dong = st.selectbox("분석 대상 행정동 (전체 검색 가능)", all_dong_list)
     
     st.markdown("---")
     st.subheader(f"🏆 타겟팅 Top 10 (평일 {min_weekday_ratio:.0%}+)")
-    # 필터링된 데이터 중 상위 10개 표시
+    
+    # Top 10은 필터링된 데이터로 표시
+    filtered_df = df[df['평일_매출_비중'] >= min_weekday_ratio]
     display_top10 = filtered_df.nsmallest(10, '전체_순위')[['전체_순위', '표준_행정동_명']] if not filtered_df.empty else pd.DataFrame()
     
     if not display_top10.empty:
@@ -77,8 +72,8 @@ with st.sidebar:
     else:
         st.write("해당 조건의 상권이 없습니다.")
 
-st.markdown('<div class="main-title">오피스 상권 카페 창업 스카우터</div>', unsafe_allow_html=True)
-st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반 (Data v6 - 세분화 행정동 포함)</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">☕ 저가카페 창업 스카우터</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="color: #9E9E9E; margin-bottom: 20px;">서울시 {total_dongs}개 행정동 분석 기반 (Data v7 - 저가카페 창업 최적화)</div>', unsafe_allow_html=True)
 
 # 데이터 필터링 (정확한 매칭 확인)
 selected_df = df[df['표준_행정동_명'] == target_dong]
@@ -88,12 +83,14 @@ if selected_df.empty:
 selected_row = selected_df.iloc[0]
 
 # KPI
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
 with c1: st.markdown(f'<div class="metric-card"><small>서울시 석차</small><br><b style="font-size:1.6rem; color:#FFB74D;">{selected_row["전체_순위"]}위</b><br><small>/{total_dongs}</small></div>', unsafe_allow_html=True)
 with c2: st.markdown(f'<div class="metric-card"><small>기회 지수</small><br><b style="font-size:1.6rem;">{selected_row["창업_기회_지수"]:.1f}</b></div>', unsafe_allow_html=True)
 with c3: st.markdown(f'<div class="metric-card"><small>오피스 종사자</small><br><b style="font-size:1.6rem;">{selected_row["총_종사자수"]:,}명</b></div>', unsafe_allow_html=True)
 with c4: st.markdown(f'<div class="metric-card"><small>평일 매출 비중</small><br><b style="font-size:1.6rem; color:#64B5F6;">{selected_row["평일_매출_비중"]:.1%}</b></div>', unsafe_allow_html=True)
 with c5: st.markdown(f'<div class="metric-card"><small>수혈 타임 비중</small><br><b style="font-size:1.6rem; color:#81C784;">{selected_row["수혈_시간대_매출_비중"]:.1%}</b></div>', unsafe_allow_html=True)
+with c6: st.markdown(f'<div class="metric-card"><small>카페 밀집도</small><br><b style="font-size:1.6rem;">{selected_row["카페_밀집도"]:.1f}개/km²</b></div>', unsafe_allow_html=True)
+with c7: st.markdown(f'<div class="metric-card"><small>저가 카페 비율</small><br><b style="font-size:1.6rem;">{selected_row["저가_카페_비율"]:.1%}</b></div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -124,14 +121,12 @@ with tab2:
     st.caption("기회 지수는 아래 4가지 핵심 요소의 서울시 내 상대적 위치(백분위)를 종합하여 산출됩니다.")
     
     # 레이더 차트 데이터
-    categories = ['오피스 밀집도', '평일 매출 비중', '수혈 시간대 비중', '낮은 경쟁 강도']
-    # 경쟁 강도는 카페 수가 적을수록 점수가 높으므로 1 - rank 적용 (혹은 역수)
-    # 전처리 시 카페_수_rank는 카페가 많을수록 1에 가까움. 기배 추출 시 역수 활용했으므로 여기서도 보정.
+    categories = ['오피스 규모', '평일 매출 비중', '저가 경쟁(낮음)', '전체 밀집도(낮음)']
     values = [
-        selected_row['총_종사자수_rank'] * 100,
-        selected_row['평일_매출_비중_rank'] * 100,
-        selected_row['수혈_시간대_매출_비중_rank'] * 100,
-        (1 - selected_row['카페_수_rank']) * 100
+        selected_row.get('총_종사자수_rank', 0.5) * 100,
+        selected_row.get('평일_매출_비중_rank', 0.5) * 100,
+        (1 - selected_row.get('저가_카페_비율_rank', 0.5)) * 100,
+        (1 - selected_row.get('카페_밀집도_rank', 0.5)) * 100
     ]
     
     fig_radar = go.Figure()
@@ -160,14 +155,14 @@ with tab2:
     with c_r2:
         st.markdown(f"""
         ### 🔍 {target_dong} 점수표
-        - **오피스 밀집도**: {values[0]:.1f}점 (직장인 {selected_row['총_종사자수']:,}명)
-        - **평일 매출 비중**: {values[1]:.1f}점 (매출의 {selected_row['평일_매출_비중']:.1%}가 주중 발생)
-        - **수혈 시간대 비중**: {values[2]:.1f}점 (06~14시 매출 비중 {selected_row['수혈_시간대_매출_비중']:.1%})
-        - **낮은 경쟁 강도**: {values[3]:.1f}점 (기존 카페 {selected_row['카페_수']:.0f}개 대비 잠재력)
+        - **오피스 규모**: {values[0]:.1f}점 (직장인 {selected_row['총_종사자수']:,}명) - **가중치 50%**
+        - **평일 매출 비중**: {values[1]:.1f}점 (오피스 상권 {selected_row['평일_매출_비중']:.1%}) - **가중치 20%**
+        - **저가 경쟁**: {values[2]:.1f}점 (저가카페 비율 {selected_row['저가_카페_비율']:.1%} - 낮을수록 좋음) - **가중치 10%**
+        - **전체 밀집도**: {values[3]:.1f}점 ({selected_row['카페_밀집도']:.1f}개/km² - 낮을수록 좋음) - **가중치 20%**
         
         ---
         **[산출 공식]**
-        `지수 = (오피스 밀집도/경쟁강도 * 0.4) + (평일 비중 * 0.3) + (수혈 비중 * 0.3)`
+        `종사자(50%) + 평일비중(20%) + 저가비율(10%) + 밀집도(20%)`
         """)
 
 with tab3:
@@ -182,8 +177,8 @@ with tab3:
 
 with tab4:
     st.subheader("📜 오피스 상권 유망 지역 Top 10")
-    top10_full = df.nsmallest(10, '전체_순위')[['전체_순위', '표준_행정동_명', '창업_기회_지수', '총_종사자수', '평일_매출_비중', '카페_수']]
-    top10_full.columns = ['순위', '행정동', '기회 지수', '직장인 수', '평일 매출 비중', '카페 수']
+    top10_full = df.nsmallest(10, '전체_순위')[['전체_순위', '표준_행정동_명', '창업_기회_지수', '총_종사자수', '평일_매출_비중', '카페_밀집도', '저가_카페_비율']]
+    top10_full.columns = ['순위', '행정동', '기회 지수', '직장인 수', '평일 매출 비중', '카페 밀집도', '저가 비율']
     st.dataframe(top10_full.style.format({'기회 지수': '{:.1f}', '직장인 수': '{:,}', '평일 매출 비중': '{:.1%}'}).background_gradient(subset=['기회 지수'], cmap='Oranges'), use_container_width=True)
 
 st.markdown("---")
